@@ -1,0 +1,155 @@
+{
+  "info": {
+    "name": "API Facturas v1 (PHP + MariaDB)",
+    "description": "Los endpoints de la v1 listos para probar. El orden de las peticiones cuenta una historia: diagnóstico → lecturas → el ciclo de escritura → la pareja didáctica PUT=422 vs PATCH=200 → los errores.\n\nLa variable {{base}} apunta al proyecto del curso (http://localhost:8022). Si está probando SU reconstrucción, cámbiela a http://localhost:8122 (clic en la colección → Variables).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base",
+      "value": "http://localhost:8022",
+      "description": "La URL base de la API. Proyecto del curso: 8022 · SU reconstrucción: 8122"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Diagnóstico — GET /",
+      "request": {
+        "method": "GET",
+        "url": "{{base}}/",
+        "description": "¿La API está viva? Responde mensaje, versión y dónde están los contratos."
+      }
+    },
+    {
+      "name": "2. Listar productos — GET /api/producto",
+      "request": {
+        "method": "GET",
+        "url": "{{base}}/api/producto",
+        "description": "Los 8 productos de ejemplo, con la envoltura {tabla, limite, total, datos}."
+      }
+    },
+    {
+      "name": "3. Listar con límite — GET /api/producto?limite=3",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{base}}/api/producto?limite=3",
+          "host": ["{{base}}"],
+          "path": ["api", "producto"],
+          "query": [{ "key": "limite", "value": "3" }]
+        },
+        "description": "El query string en acción: exactamente 3 productos."
+      }
+    },
+    {
+      "name": "4. Obtener uno — GET /api/producto/PR001",
+      "request": {
+        "method": "GET",
+        "url": "{{base}}/api/producto/PR001",
+        "description": "El parámetro de ruta: la Laptop Lenovo, como objeto suelto."
+      }
+    },
+    {
+      "name": "5. Obtener inexistente — GET /api/producto/PR999 (→ 404)",
+      "request": {
+        "method": "GET",
+        "url": "{{base}}/api/producto/PR999",
+        "description": "El 404 de negocio: el código no existe y el mensaje lo dice claro."
+      }
+    },
+    {
+      "name": "6. Crear — POST /api/producto (→ 200)",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base}}/api/producto",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigo\": \"PR009\",\n  \"nombre\": \"Webcam Logitech\",\n  \"stock\": 10,\n  \"valorunitario\": 350000\n}"
+        },
+        "description": "Crea PR009. Repetir la petición da 500: el código duplicado viola la llave primaria (la BD es la última muralla)."
+      }
+    },
+    {
+      "name": "7. Reemplazar completo — PUT /api/producto/PR009 (→ 200)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base}}/api/producto/PR009",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nombre\": \"Webcam Logitech HD\",\n  \"stock\": 12,\n  \"valorunitario\": 380000\n}"
+        },
+        "description": "PUT = reemplazo COMPLETO: van los 3 campos (el código va en la URL)."
+      }
+    },
+    {
+      "name": "8. Actualizar parcial — PATCH /api/producto/PR009 (→ 200)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base}}/api/producto/PR009",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"stock\": 99\n}"
+        },
+        "description": "PATCH = parcial: solo viaja lo que cambia."
+      }
+    },
+    {
+      "name": "9. LA PAREJA (a): PUT con body parcial (→ 422)",
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base}}/api/producto/PR001",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"stock\": 99\n}"
+        },
+        "description": "LA LECCIÓN DE LA v1: este body en PUT responde 422 con la lista de campos faltantes — PUT exige el recurso completo. Compare con la petición 10."
+      }
+    },
+    {
+      "name": "10. LA PAREJA (b): PATCH con el MISMO body (→ 200)",
+      "request": {
+        "method": "PATCH",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base}}/api/producto/PR001",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"stock\": 17\n}"
+        },
+        "description": "El MISMO tipo de body que la petición 9, pero en PATCH: 200. Mismo dato, dos verbos, dos semánticas. (Se usa stock=17 para dejar la BD como estaba.)"
+      }
+    },
+    {
+      "name": "11. Body inválido — POST (→ 422 con errores[])",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{base}}/api/producto",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"codigo\": \"PRX\",\n  \"stock\": -5,\n  \"valorunitario\": 10\n}"
+        },
+        "description": "La frontera de validación: falta el nombre y el stock es negativo → 422 con la LISTA de errores (todos de una vez, no uno por uno)."
+      }
+    },
+    {
+      "name": "12. Eliminar — DELETE /api/producto/PR009 (→ 200)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base}}/api/producto/PR009",
+        "description": "Elimina el producto creado en la petición 6. Deja la BD como estaba."
+      }
+    },
+    {
+      "name": "13. Eliminar de nuevo — DELETE repetido (→ 404)",
+      "request": {
+        "method": "DELETE",
+        "url": "{{base}}/api/producto/PR009",
+        "description": "El segundo DELETE del mismo código: ya no existe → 404."
+      }
+    }
+  ]
+}
